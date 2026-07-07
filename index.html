@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Millionaire Addition</title>
+<meta name="theme-color" content="#070c1f" />
+<meta name="description" content="A fast-paced addition math game — race the clock, build combos, bank virtual money." />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<style>
+  :root{
+    --deep:#070c1f; --navy:#0d1638; --navy2:#131f4d; --navy3:#1a2a63;
+    --gold:#f2c14e; --gold-deep:#b9852e; --gold-line:#ffe9a8;
+    --correct:#33d17a; --wrong:#e0435c; --ink:#f5f1e6; --ink-dim:#9aa3c7;
+    --border:#25305c;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family: Georgia, 'Times New Roman', serif;
+    background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--navy3) 0%, var(--deep) 55%);
+    color: var(--ink);
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-user-select:none; user-select:none;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .screen{ position:relative; z-index:1; min-height:100vh; display:none; flex-direction:column; align-items:center; padding:24px 16px; }
+  .screen.active{ display:flex; }
+  .wrap{ position:relative; z-index:1; width:100%; max-width:640px; display:flex; flex-direction:column; align-items:center; }
+
+  /* spotlight bg */
+  .spotlight{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:0; overflow:hidden; }
+  .ring1{ width:900px; height:900px; border-radius:50%; position:absolute;
+    background: conic-gradient(from 0deg, rgba(242,193,78,0.10) 0deg, transparent 24deg, transparent 336deg, rgba(242,193,78,0.10) 360deg);
+    animation: spin 40s linear infinite; }
+  .ring2{ width:700px; height:700px; border-radius:50%; position:absolute;
+    background: conic-gradient(from 45deg, rgba(255,233,168,0.08) 0deg, transparent 20deg, transparent 340deg, rgba(255,233,168,0.08) 360deg);
+    animation: spinRev 55s linear infinite; }
+  .glow{ width:520px; height:520px; border-radius:50%; position:absolute;
+    background: radial-gradient(circle, rgba(242,193,78,0.16) 0%, rgba(242,193,78,0.04) 55%, transparent 75%); }
+  @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+  @keyframes spinRev{from{transform:rotate(360deg)}to{transform:rotate(0)}}
+  @keyframes pulseGold{0%,100%{box-shadow:0 0 18px 2px rgba(242,193,78,.35), inset 0 0 24px rgba(242,193,78,.06)}50%{box-shadow:0 0 34px 8px rgba(242,193,78,.6), inset 0 0 30px rgba(242,193,78,.14)}}
+  @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+  @keyframes floatUp{0%{opacity:0;transform:translate(-50%,0) scale(.85)}15%{opacity:1;transform:translate(-50%,-6px) scale(1)}100%{opacity:0;transform:translate(-50%,-70px) scale(1.05)}}
+  @keyframes popIn{0%{opacity:0;transform:scale(.7)}60%{opacity:1;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
+  @keyframes flashGreen{0%{background-color:rgba(51,209,122,0)}30%{background-color:rgba(51,209,122,.22)}100%{background-color:rgba(51,209,122,0)}}
+  @keyframes flashRed{0%{background-color:rgba(224,67,92,0)}30%{background-color:rgba(224,67,92,.24)}100%{background-color:rgba(224,67,92,0)}}
+  @keyframes comboGlow{0%,100%{text-shadow:0 0 8px rgba(242,193,78,.5)}50%{text-shadow:0 0 20px rgba(242,193,78,.95)}}
+  @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  .pulse-gold{ animation: pulseGold 2.4s ease-in-out infinite; }
+  .shake-x{ animation: shakeX .4s ease; }
+  .float-up{ animation: floatUp .9s ease-out forwards; }
+  .pop-in{ animation: popIn .35s cubic-bezier(.34,1.56,.64,1); }
+  .flash-green{ animation: flashGreen .55s ease; }
+  .flash-red{ animation: flashRed .55s ease; }
+  .combo-glow{ animation: comboGlow 1s ease-in-out infinite; }
+  .gold-text{
+    background: linear-gradient(90deg,#b9852e,#ffe9a8 40%,#f2c14e 60%,#b9852e);
+    background-size:200% auto; -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: shimmer 4s linear infinite;
+  }
+
+  button{ font-family:inherit; border:none; cursor:pointer; }
+  .btn{ border-radius:12px; padding:12px; font-weight:bold; transition:transform .1s; }
+  .btn:active{ transform:scale(.95); }
+  .btn-gold{ background:linear-gradient(160deg,var(--gold-line),var(--gold) 55%,var(--gold-deep)); color:var(--deep); }
+  .btn-navy{ background:var(--navy2); color:var(--ink); border:1px solid var(--border); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  .eyebrow{ font-size:11px; letter-spacing:.35em; color:var(--ink-dim); margin-bottom:8px; }
+  h1.title{ font-size:clamp(28px,7vw,44px); text-align:center; font-weight:bold; margin:0 0 22px; letter-spacing:1px; }
+
+  .money-panel{ width:100%; display:flex; align-items:center; justify-content:space-between; border-radius:16px; padding:18px 20px; margin-bottom:26px;
+    background:linear-gradient(160deg,var(--navy2),var(--navy)); border:1px solid var(--gold-deep); }
+  .coin-badge{ width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px;
+    background: radial-gradient(circle, var(--gold), var(--gold-deep)); flex-shrink:0; }
+  .label-xs{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-dim); }
+  .money-val{ font-weight:bold; font-size:clamp(20px,5vw,28px); color:var(--gold); }
+
+  .play-cta{ display:flex; align-items:center; gap:10px; border-radius:999px; padding:16px 32px; font-size:18px; margin-bottom:30px;
+    box-shadow:0 8px 24px rgba(242,193,78,.35); }
+
+  .level-grid{ width:100%; display:grid; grid-template-columns:1fr; gap:14px; }
+  @media(min-width:560px){ .level-grid{ grid-template-columns:1fr 1fr; } }
+  .level-card{ border-radius:14px; padding:16px; display:flex; flex-direction:column; justify-content:space-between; }
+  .level-card.owned{ background:linear-gradient(160deg,var(--navy2),var(--navy)); border:1px solid var(--gold-deep); }
+  .level-card.locked{ background:linear-gradient(160deg,var(--navy),var(--deep)); border:1px solid var(--border); }
+  .level-top{ display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:8px; }
+  .level-tag{ font-size:11px; font-weight:600; letter-spacing:.06em; color:var(--gold); }
+  .level-name{ font-weight:bold; font-size:17px; }
+  .level-desc{ font-size:13px; color:var(--ink-dim); }
+  .level-stats{ font-size:12px; color:var(--ink-dim); display:flex; gap:14px; margin-bottom:10px; }
+  .footer-note{ font-size:12px; text-align:center; color:var(--ink-dim); margin-top:26px; }
+
+  /* footer credit */
+  .credit-footer{ width:100%; text-align:center; padding:18px 10px 10px; margin-top:20px; font-size:12px; color:var(--ink-dim); letter-spacing:.04em; }
+  .credit-footer b{ color:var(--gold); font-weight:600; }
+
+  /* timer select */
+  .back-btn{ align-self:flex-start; display:flex; align-items:center; gap:6px; font-size:14px; color:var(--ink-dim); background:none; margin-bottom:18px; }
+  .time-options{ display:flex; gap:12px; margin:14px 0 34px; }
+  .time-opt{ border-radius:12px; padding:16px 22px; font-size:18px; font-weight:bold; background:var(--navy2); color:var(--ink); border:1px solid var(--border); }
+  .time-opt.sel{ background:linear-gradient(160deg,var(--gold-line),var(--gold)); color:var(--deep); border:1px solid var(--gold); }
+
+  /* play screen */
+  .top-bar{ width:100%; display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:14px; }
+  .ring{ width:78px; height:78px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  .ring-inner{ width:64px; height:64px; border-radius:50%; background:var(--deep); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:17px; }
+  .stat-row{ width:100%; display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; font-size:14px; color:var(--ink-dim); }
+  .combo-tag{ display:flex; align-items:center; gap:5px; font-weight:bold; color:var(--gold); }
+  .qcard-wrap{ flex:1; display:flex; align-items:center; justify-content:center; width:100%; position:relative; min-height:180px; }
+  .qcard{ border-radius:26px; padding:52px 40px; min-width:260px; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,var(--navy2),var(--navy)); border:2px solid var(--gold-deep); position:relative; }
+  .qtext{ font-weight:bold; font-size:clamp(30px,9vw,54px); letter-spacing:1px; text-align:center; }
+  .floater{ position:absolute; left:50%; top:-6px; font-weight:bold; font-size:19px; white-space:nowrap; z-index:20; }
+
+  .keypad-wrap{ width:100%; max-width:340px; display:flex; flex-direction:column; align-items:center; gap:12px; padding-bottom:6px; }
+  .answer-display{ width:100%; text-align:center; border-radius:14px; padding:14px; font-weight:bold; font-size:28px; min-height:58px;
+    background:var(--deep); border:2px solid var(--gold-deep); letter-spacing:2px; }
+  .keypad{ width:100%; display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .key{ border-radius:12px; padding:16px 0; font-size:22px; font-weight:bold; background:var(--navy2); color:var(--ink); border:1px solid var(--border); }
+  .key.wide{ grid-column:span 1; }
+  .key.back{ background:var(--navy2); color:var(--wrong); }
+  .submit-btn{ width:100%; border-radius:14px; padding:15px 0; font-size:18px; }
+
+  /* end screen */
+  .badge-pill{ margin-bottom:6px; padding:5px 16px; border-radius:999px; font-size:11px; font-weight:bold; letter-spacing:.15em; }
+  .end-title{ font-size:30px; font-weight:bold; margin:2px 0 4px; text-align:center; }
+  .end-sub{ font-size:13px; color:var(--ink-dim); margin-bottom:22px; }
+  .money-block{ width:100%; border-radius:18px; padding:22px; margin-bottom:22px; display:flex; flex-direction:column; align-items:center;
+    background:linear-gradient(160deg,var(--navy2),var(--navy)); border:1px solid var(--gold-deep); }
+  .earned{ font-weight:bold; font-size:34px; color:var(--gold); margin-bottom:14px; }
+  .bank-val{ font-weight:600; font-size:20px; }
+  .stat-grid{ width:100%; display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:28px; }
+  .stat-box{ border-radius:12px; padding:11px; display:flex; align-items:center; gap:9px; background:var(--navy2); border:1px solid var(--border); }
+  .stat-box .v{ font-weight:bold; font-size:14px; }
+  .stat-box .l{ font-size:11px; color:var(--ink-dim); }
+  .end-actions{ width:100%; display:flex; flex-direction:column; gap:10px; }
+  .end-actions .row{ display:flex; gap:10px; }
+  .end-actions .row button{ flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:12px 0; }
+  .play-again{ display:flex; align-items:center; justify-content:center; gap:7px; padding:13px 0; }
+</style>
+</head>
+<body>
+
+<div class="spotlight"><div class="ring1"></div><div class="ring2"></div><div class="glow"></div></div>
+
+<!-- HOME -->
+<div class="screen active" id="screen-home">
+  <div class="wrap">
+    <div class="eyebrow">THE ADDITION HOT SEAT</div>
+    <h1 class="title gold-text">MILLIONAIRE ADDITION</h1>
+
+    <div class="money-panel pulse-gold">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="coin-badge">🪙</div>
+        <div>
+          <div class="label-xs">Total Bank Balance</div>
+          <div class="money-val" id="home-money">$0</div>
+        </div>
+      </div>
+      <div style="text-align:right;" id="home-next-cost"></div>
+    </div>
+
+    <button class="btn btn-gold play-cta" id="home-play-btn">▶ <span id="home-play-label">Play Level 1</span></button>
+
+    <div class="level-grid" id="level-grid"></div>
+
+    <div class="footer-note">Progress saves automatically on this device.</div>
+  </div>
+  <div class="credit-footer">© <span id="year"></span> <b>ReBan Technologies</b> — All rights reserved</div>
+</div>
+
+<!-- TIMER SELECT -->
+<div class="screen" id="screen-timer">
+  <div class="wrap" style="justify-content:center; flex:1;">
+    <button class="back-btn" id="timer-back-btn">← Back</button>
+    <div class="eyebrow" id="timer-level-id"></div>
+    <h2 class="gold-text end-title" id="timer-level-name" style="margin-bottom:2px;"></h2>
+    <div class="end-sub" id="timer-level-tag" style="margin-bottom:26px;"></div>
+    <div class="label-xs" style="color:var(--gold); margin-bottom:10px;">CHOOSE YOUR TIME</div>
+    <div class="time-options" id="time-options"></div>
+    <button class="btn btn-gold play-cta pulse-gold" id="start-game-btn">▶ Start Game</button>
+  </div>
+  <div class="credit-footer">© <span class="yr"></span> <b>ReBan Technologies</b></div>
+</div>
+
+<!-- PLAYING -->
+<div class="screen" id="screen-playing">
+  <div class="wrap" style="flex:1;">
+    <div class="top-bar">
+      <div>
+        <div class="label-xs" id="play-level-id"></div>
+        <div style="font-weight:bold; color:var(--gold);" id="play-level-name"></div>
+      </div>
+      <div class="ring" id="timer-ring">
+        <div class="ring-inner"><span id="time-left">60.0</span></div>
+      </div>
+      <div style="text-align:right;">
+        <div class="label-xs">Money This Run</div>
+        <div style="font-weight:bold; color:var(--gold);" id="run-money">$0</div>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div>Accuracy: <span style="color:var(--ink);" id="accuracy">100</span>%</div>
+      <div class="combo-tag" id="combo-tag" style="display:none;"></div>
+    </div>
+
+    <div class="qcard-wrap">
+      <div class="qcard" id="qcard">
+        <div class="qtext" id="qtext">0 + 0</div>
+      </div>
+    </div>
+
+    <div class="keypad-wrap">
+      <div class="answer-display" id="answer-display">?</div>
+      <div class="keypad" id="keypad"></div>
+      <button class="btn btn-gold submit-btn" id="submit-btn">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- END -->
+<div class="screen" id="screen-end">
+  <div class="wrap pop-in" style="justify-content:center; flex:1;">
+    <div class="badge-pill" id="end-badge"></div>
+    <h2 class="gold-text end-title">Time's Up!</h2>
+    <div class="end-sub" id="end-level-info"></div>
+
+    <div class="money-block pulse-gold">
+      <div class="label-xs">Money Earned</div>
+      <div class="earned" id="end-earned">+$0</div>
+      <div class="label-xs">Total Bank Balance</div>
+      <div class="bank-val" id="end-bank">$0</div>
+    </div>
+
+    <div class="stat-grid" id="end-stats"></div>
+
+    <div class="end-actions">
+      <button class="btn btn-gold play-again" id="end-play-again">▶ Play Again</button>
+      <div class="row">
+        <button class="btn btn-navy" id="end-retry">↻ Retry</button>
+        <button class="btn btn-navy" id="end-home">🏠 Home</button>
+      </div>
+    </div>
+  </div>
+  <div class="credit-footer">© <span class="yr"></span> <b>ReBan Technologies</b></div>
+</div>
+
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+document.querySelectorAll('#year, .yr').forEach(el => el.textContent = new Date().getFullYear());
+</script>
+</body>
+</html>
